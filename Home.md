@@ -14,4 +14,6 @@ Welcome to the code_fto_c2b2 wiki!
 
 
 2. subjects with irregular # of slices
-subject 10750 (slice #53) and 133997 (slice #58) have irregular slice numbers. This must be corrected for dwipreprocess, particularly with eddy_cuda with s2v correction option where you need to provide slice order information as a text file (slspec.txt)
+subject 10750 (slice #53) and 133997 (slice #58) have irregular slice numbers. This must be corrected for dwipreprocess, particularly with eddy_cuda with s2v correction option where you need to provide slice order information as a text file (slspec.txt).
+
+*These two subjects were cropped to have 52 (even number) slices.
