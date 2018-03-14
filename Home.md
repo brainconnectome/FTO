@@ -8,4 +8,4 @@ Welcome to the code_fto_c2b2 wiki!
 
 -before and after eddy_cuda
 
-
+![](code_fto_c2b2/img/eddy_cuda.jpg)
