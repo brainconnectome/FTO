@@ -8,4 +8,6 @@ Welcome to the code_fto_c2b2 wiki!
 
 -before and after eddy_cuda
 
+-note that *CERTAIN* GPU cards in c2b2 have outdated drivers that are *NOT* compatible with either cuda runtime version of 7.5, 8.0. 
+
 ![eddy_cuda before and after](https://github.com/jcha9928/code_fto_c2b2/blob/master/img/eddy_cuda.jpg)
