@@ -16,14 +16,12 @@ cd ${sub}
 
 #step4: bias field correction
  dwibiascorrect mr_dwi_denoised_gibbs_preproc.mif.gz mr_dwi_denoised_gibbs_preproc_bias.mif.gz -ants -mask dwi_mask_initial.mif.gz -fslgrad /Users/standarduser/Desktop/FTOdata/dwi.bvec /Users/standarduser/Desktop/FTOdata/dwi.bval -nthreads 8 -force 
-###1368 has 23volumes
+###13681 has 23volumes
  
  # estimate final brain mask
- dwi2mask mr_dwi_denoised_gibbs_preproc_bias.mif.gz  dwi_mask_bias.mif.gz 
- 
+ dwi2mask mr_dwi_denoised_gibbs_preproc_bias.mif.gz  dwi_mask_bias.mif.gz  
  done
- 
- 
+  
  #step 5 global intensity normalisation
  mkdir -p ../dwiintensitynorm/dwi_input
  mkdir ../dwiintensitynorm/mask_input
