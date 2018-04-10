@@ -1,0 +1,80 @@
+cat "dtinames.txt" | while read sub;do 
+cd ${sub}
+
+#step3:estimate an initial brain mask
+  dwi2mask mr_dwi_denoised_gibbs_preproc.mif.gz dwi_mask_initial.mif.gz -force
+
+  # either create mask as following: 
+    #dwiextract mr_dwi_denoised_gibbs_preproc.mif.gz - -bzero -nthreads 8 | mrmath - mean -force meanb0.mif.gz -axis 3 -nthreads 8
+	#mrconvert meanb0.mif.gz meanb0.nii.gz
+	#bet2 meanb0 meanb0_brain -m -f 0.1 
+	#mrconvert meanb0_brain_mask.nii.gz dwi_mask.mif.gz -force 
+#however, use the mask to run field correction, some work, others don't work. Maybe the mask made by fsl's bet2 doesn't work for ants	
+# for example: N4BiasFieldCorrection -d 3 -i mean_bzero.nii -w mask.nii -o [corrected.nii,bias.nii] -b [150,3] -c [1000x1000,0.0] this code doesn't work because of the problem of mask (bet2)
+
+#The bias field correction should mostly do away with the (too) low intensities that cause the holes, even when this bias field correction itself is provided with a sub-optimal mask that has holes, as the bias field is expected to be relatively smooth.
+
+#step4: bias field correction
+ dwibiascorrect mr_dwi_denoised_gibbs_preproc.mif.gz mr_dwi_denoised_gibbs_preproc_bias.mif.gz -ants -mask dwi_mask_initial.mif.gz -fslgrad /Users/standarduser/Desktop/FTOdata/dwi.bvec /Users/standarduser/Desktop/FTOdata/dwi.bval -nthreads 8 -force 
+###1368 has 23volumes
+ 
+ # estimate final brain mask
+ dwi2mask mr_dwi_denoised_gibbs_preproc_bias.mif.gz  dwi_mask_bias.mif.gz 
+ 
+ done
+ 
+ 
+ #step 5 global intensity normalisation
+ mkdir -p ../dwiintensitynorm/dwi_input
+ mkdir ../dwiintensitynorm/mask_input
+  
+ foreach * : ln IN/mr_dwi_denoised_gibbs_preproc_bias.mif.gz ../dwiintensitynorm/dwi_input/IN.mif.gz
+ foreach * : ln IN/dwi_mask_bias.mif.gz ../dwiintensitynorm/mask_input/IN.mif.gz 
+ 
+#before perform dwiintensitynorm, should remove the hidden .DS_Store file in dwi_input and mask_input 
+
+#perform intensity normalisation
+ dwiintensitynorm ../dwiintensitynorm/dwi_input/ ../dwiintensitynorm/mask_input/ ../dwiintensitynorm/dwi_output/ ../dwiintensitynorm/fa_template.mif ../dwiintensitynorm/fa_template_wm_mask.mif -force -nthreads 8
+
+ #Link the output files back to the subject directories:
+ 
+ #foreach ../dwiintensitynorm/dwi_output/* : ln IN PRE/mr_dwi_denoised_gibbs_preproc_bias_norm.mif.gz
+ #Because the name of the data is 9421.mif.gz, so PRE=9421.mif, this code doesn't work. If the data name is 9421.mif, the PRE=9421, then it will work.
+ 
+ cat "list_79.txt" | while read ana; do
+   cp /Users/standarduser/Desktop/FTOdata/dwiintensitynorm/dwi_output/${ana}.mif.gz /Users/standarduser/Desktop/FTOdata/subjects/${ana}
+   mv /Users/standarduser/Desktop/FTOdata/subjects/${ana}/${ana}.mif.gz /Users/standarduser/Desktop/FTOdata/subjects/${ana}/mr_dwi_denoised_gibbs_preproc_bias_norm.mif.gz
+done
+
+####new 4 subjects
+
+dwi2tensor 16111/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -mask 16111/dwi_mask_bias.mif.gz - | tensor2metric - -fa - | mrregister -force ../dwiintensitynorm/fa_template.mif - -mask2 16111/dwi_mask_bias.mif.gz -nl_scale 0.5,0.75,1.0 -nl_niter 5,5,15 -nl_warp - /tmp/dummy_file.mif | mrtransform ../dwiintensitynorm/fa_template_wm_mask.mif -template 16111/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -warp - - | dwinormalise 16111/mr_dwi_denoised_gibbs_preproc_bias.mif.gz - ../dwiintensitynorm/dwi_output/16111.mif.gz
+dwi2tensor 16121/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -mask 16121/dwi_mask_bias.mif.gz - | tensor2metric - -fa - | mrregister -force ../dwiintensitynorm/fa_template.mif - -mask2 16121/dwi_mask_bias.mif.gz -nl_scale 0.5,0.75,1.0 -nl_niter 5,5,15 -nl_warp - /tmp/dummy_file.mif | mrtransform ../dwiintensitynorm/fa_template_wm_mask.mif -template 16121/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -warp - - | dwinormalise 16121/mr_dwi_denoised_gibbs_preproc_bias.mif.gz - ../dwiintensitynorm/dwi_output/16121.mif.gz
+dwi2tensor 16122/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -mask 16122/dwi_mask_bias.mif.gz - | tensor2metric - -fa - | mrregister -force ../dwiintensitynorm/fa_template.mif - -mask2 16122/dwi_mask_bias.mif.gz -nl_scale 0.5,0.75,1.0 -nl_niter 5,5,15 -nl_warp - /tmp/dummy_file.mif | mrtransform ../dwiintensitynorm/fa_template_wm_mask.mif -template 16122/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -warp - - | dwinormalise 16122/mr_dwi_denoised_gibbs_preproc_bias.mif.gz - ../dwiintensitynorm/dwi_output/16122.mif.gz
+dwi2tensor 16206/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -mask 16206/dwi_mask_bias.mif.gz - | tensor2metric - -fa - | mrregister -force ../dwiintensitynorm/fa_template.mif - -mask2 16206/dwi_mask_bias.mif.gz -nl_scale 0.5,0.75,1.0 -nl_niter 5,5,15 -nl_warp - /tmp/dummy_file.mif | mrtransform ../dwiintensitynorm/fa_template_wm_mask.mif -template 16206/mr_dwi_denoised_gibbs_preproc_bias.mif.gz -warp - - | dwinormalise 16206/mr_dwi_denoised_gibbs_preproc_bias.mif.gz - ../dwiintensitynorm/dwi_output/16206.mif.gz
+
+ #step6 Computing a group average response function
+ 
+ foreach * : dwi2response tournier IN/mr_dwi_denoised_gibbs_preproc_bias_norm.mif.gz IN/response.txt -mask IN/dwi_mask_bias.mif.gz -voxels IN/mr_response_voxels.mif.gz -force -nthreads 8
+ average_response */response.txt ../group_average_response.txt
+ 
+ #step7. Upsampling DWI images
+foreach * : mrresize IN/mr_dwi_denoised_gibbs_preproc_bias_norm.mif.gz -voxel 1.25 IN/mr_dwi_denoised_gibbs_preproc_bias_norm_upsampled.mif.gz -interp sinc -force -nthreads 8
+
+ #step8. Compute upsampled brain mask images
+ foreach * : dwi2mask IN/mr_dwi_denoised_gibbs_preproc_bias_norm_upsampled.mif.gz IN/dwi_mask_upsampled.mif.gz
+ 
+ #9. Fibre Orientation Distribution estimation
+ foreach * : dwiextract IN/mr_dwi_denoised_gibbs_preproc_bias_norm_upsampled.mif.gz - \| dwi2fod msmt_csd - ../group_average_response.txt IN/wmfod.mif.gz -mask IN/dwi_mask_upsampled.mif.gz -force -nthreads 8
+ 
+
+ #10. Generate a study-specific unbiased FOD template
+ mkdir -p ../template/fod_input
+ mkdir ../template/mask_input
+ # building a template from your entire study population
+foreach * : ln IN/wmfod.mif.gz ../template/fod_input/IN.mif.gz
+foreach * : ln IN/dwi_mask_upsampled.mif.gz ../template/mask_input/PRE.mif.gz
+population_template ../template/fod_input -mask_dir ../template/mask_input ../template/wmfod_template.mif.gz -voxel_size 1.25 -warp_dir warps -force -nthreads 8
+#If you are building a template from your entire study population, run the population_template script use the -warp_dir warps option to output a directory containing all subject warps to the template. Saving the warps here will enable you to skip the next step. 
+#Note that the warps used (and therefore output) from the population_template script are 5D images containing both forward and reverse warps (see mrregister for more info). After population template creation is complete, to convert this warp format to a more conventional 4D deformation field format ready for the subsequent steps
+foreach ../template/warps/* : warpconvert -type warpfull2deformation -template ../template/wmfod_template.mif.gz IN PRE/subject2template_warp.mif.gz -force -nthreads 8
