@@ -77,3 +77,60 @@ population_template ../template/fod_input -mask_dir ../template/mask_input ../te
 #If you are building a template from your entire study population, run the population_template script use the -warp_dir warps option to output a directory containing all subject warps to the template. Saving the warps here will enable you to skip the next step. 
 #Note that the warps used (and therefore output) from the population_template script are 5D images containing both forward and reverse warps (see mrregister for more info). After population template creation is complete, to convert this warp format to a more conventional 4D deformation field format ready for the subsequent steps
 foreach ../template/warps/* : warpconvert -type warpfull2deformation -template ../template/wmfod_template.mif.gz IN PRE/subject2template_warp.mif.gz -force -nthreads 8
+
+#12. Compute the intersection of all subject masks in template space
+foreach * : mrtransform IN/dwi_mask_upsampled.mif.gz -warp IN/subject2template_warp.mif.gz -interp nearest IN/dwi_mask_in_template_space.mif.gz -force -nthreads 8
+#Compute the intersection of all warped masks
+mrmath */dwi_mask_in_template_space.mif.gz min ../template/mask_intersection.mif.gz -force -nthreads 8
+
+#13. Compute a white matter template analysis fixel mask
+fod2fixel ../template/wmfod_template.mif.gz -mask ../template/mask_intersection.mif.gz ../template/fixel_temp -peak peaks.mif.gz -force -nthreads 8
+
+#Threshold the peaks fixel image:
+mrthreshold ../template/fixel_temp/peaks.mif -abs 0.33 ../template/fixel_temp/mask.mif
+
+#Generate an analysis voxel mask from the fixel mask. The median filter in this step should remove spurious voxels outside the brain, and fill in the holes in deep white matter where you have small peaks due to 3-fibre crossings:
+fixel2voxel ../template/fixel_temp/mask.mif max - | mrfilter - median ../template/voxel_mask.mif -force -nthreads 8
+#rm -rf ../template/fixel_temp
+#Recompute the fixel mask using the analysis voxel mask
+fod2fixel -mask ../template/voxel_mask.mif -fmls_peak_value 0.2 ../template/wmfod_template.mif.gz ../template/fixel_mask -force -nthreads 8
+# mrinfo -size ../template/fixel_mask/directions.mif 
+# fixel number is 158463
+#14. Warp FOD images to template space
+foreach * : mrtransform IN/wmfod.mif.gz -warp IN/subject2template_warp.mif.gz -noreorientation IN/fod_in_template_space.mif.gz -force -nthreads 8
+#15. Segment FOD images to estimate fixels and their apparent fibre density (FD)
+foreach * : fod2fixel IN/fod_in_template_space.mif.gz -mask ../template/voxel_mask.mif IN/fixel_in_template_space -afd fd.mif -force -nthreads 8
+#16. Reorient fixel orientations
+foreach * : fixelreorient IN/fixel_in_template_space IN/subject2template_warp.mif.gz IN/fixel_in_template_space --force
+#17. Assign subject fixels to template fixels
+foreach * : fixelcorrespondence IN/fixel_in_template_space/fd.mif ../template/fixel_mask ../template/fd PRE.mif -force -nthreads 8
+#18. Compute fibre cross-section (FC) metric
+foreach * : warp2metric IN/subject2template_warp.mif.gz -fc ../template/fixel_mask ../template/fc IN.mif -force -nthreads 8
+#log(FC)
+mkdir ../template/log_fc
+cp ../template/fc/index.mif ../template/fc/directions.mif ../template/log_fc
+foreach * : mrcalc ../template/fc/IN.mif -log ../template/log_fc/IN.mif -force -nthreads 8
+#19.Compute a combined measure of fibre density and cross-section (FDC)
+mkdir ../template/fdc
+cp ../template/fc/index.mif ../template/fc/directions.mif ../template/fdc
+foreach * : mrcalc ../template/fd/IN.mif ../template/fc/IN.mif -mult ../template/fdc/IN.mif -force -nthreads 8
+#20. Perform whole-brain fibre tractography on the FOD template
+cd ../template
+tckgen -angle 22.5 -maxlen 250 -minlen 10 -power 1.0 wmfod_template.mif.gz -seed_image voxel_mask.mif -mask voxel_mask.mif -select 20000000 tracks_20_million.tck -force -nthreads 8
+#21. Reduce biases in tractogram densities
+#Perform SIFT to reduce tractography biases in the whole-brain tractogram:
+tcksift tracks_20_million.tck wmfod_template.mif.gz tracks_2_million_sift.tck -term_number 2000000 -force -nthreads 8
+#22. Perform statistical analysis of FD, FC, and FDC
+#Statistical analysis is performed using connectivity-based fixel enhancement, with a separate analysis for FD, FC, and FDC as follows:
+
+fixelcfestats fd files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast.txt tracks_2_million_sift.tck stats_fd -negative -force -nthreads 8
+fixelcfestats log_fc files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast.txt tracks_2_million_sift.tck stats_log_fc -negative -force -nthreads 8
+fixelcfestats fdc files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast1.txt tracks_2_million_sift.tck stats_fdc1 -negative -force -nthreads 8
+
+#23. Visualise the results
+#To view the results load the population FOD template image in mrview, and overlay the fixel images using the Fixel plot. Loading fwe_pvalue.mif image as the “threshold by” image, and setting the lower bound to 0.95 is equivalent to masking via p<0.05.
+
+# compute a fixel mask of p < 0.05
+#mrthreshold fwe_pvalue.mif significance_mask.mif -abs 0.95
+#Then to estimate the mean value inside this mask:
+#mrstats fdc/9421.mif -mask stats_log_fc/significance_mask.mif -output mean
