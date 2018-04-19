@@ -125,7 +125,7 @@ tcksift tracks_20_million.tck wmfod_template.mif.gz tracks_2_million_sift.tck -t
 
 fixelcfestats fd files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast.txt tracks_2_million_sift.tck stats_fd -negative -force -nthreads 8
 fixelcfestats log_fc files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast.txt tracks_2_million_sift.tck stats_log_fc -negative -force -nthreads 8
-fixelcfestats fdc files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast1.txt tracks_2_million_sift.tck stats_fdc1 -negative -force -nthreads 8
+fixelcfestats fdc files.txt GLM/ttest/ttest_design.txt GLM/ttest/ttest_contrast.txt tracks_2_million_sift.tck stats_fdc -negative -force -nthreads 8
 
 #23. Visualise the results
 #To view the results load the population FOD template image in mrview, and overlay the fixel images using the Fixel plot. Loading fwe_pvalue.mif image as the “threshold by” image, and setting the lower bound to 0.95 is equivalent to masking via p<0.05.
