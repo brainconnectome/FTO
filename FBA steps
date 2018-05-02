@@ -15,7 +15,7 @@ cd ${sub}
 #The bias field correction should mostly do away with the (too) low intensities that cause the holes, even when this bias field correction itself is provided with a sub-optimal mask that has holes, as the bias field is expected to be relatively smooth.
 
 #step4: bias field correction
- dwibiascorrect mr_dwi_denoised_gibbs_preproc.mif.gz mr_dwi_denoised_gibbs_preproc_bias.mif.gz -ants -mask dwi_mask_initial.mif.gz -fslgrad /Users/standarduser/Desktop/FTOdata/dwi.bvec /Users/standarduser/Desktop/FTOdata/dwi.bval -nthreads 8 -force 
+ dwibiascorrect mr_dwi_denoised_gibbs_preproc.mif.gz mr_dwi_denoised_gibbs_preproc_bias.mif.gz -ants -mask dwi_mask_initial.mif.gz -nthreads 8 -force 
 ###13681 has 23volumes
  
  # estimate final brain mask
